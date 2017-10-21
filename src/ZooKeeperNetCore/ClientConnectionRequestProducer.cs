@@ -41,7 +41,7 @@ namespace ZooKeeperNet
         private readonly Random random = new Random();
         private int initialized;
         internal long lastZxid;
-        private long lastPingSentNs;
+        private long lastPingSentTs;
         internal int xid = 1;
         private volatile bool closing;
 
@@ -484,7 +484,7 @@ namespace ZooKeeperNet
 
         private void SendPing()
         {
-            lastPingSentNs = DateTime.UtcNow.Nanos();
+            lastPingSentTs = DateTime.UtcNow.Ticks();
             RequestHeader h = new RequestHeader(-2, (int)OpCode.Ping);
             conn.QueuePacket(h, null, null, null, null, null, null, null, null);
         }
@@ -555,7 +555,11 @@ namespace ZooKeeperNet
                 {
                     // -2 is the xid for pings
                     if (Logger.DebugEnabled)
-                        Logger.Debug("Got ping response for sessionid: 0x{} after {}ms", conn.SessionId.ToString("X"), (DateTime.UtcNow.Nanos() - lastPingSentNs) / 1000000);
+                    {
+                        var ts = new TimeSpan(DateTime.UtcNow.Ticks() - lastPingSentTs);
+                        Logger.Debug("Got ping response for sessionid: 0x{} after {}ms", conn.SessionId.ToString("X"), ts.TotalMilliseconds);
+                    }
+
                     return;
                 }
                 if (replyHdr.Xid == -4)

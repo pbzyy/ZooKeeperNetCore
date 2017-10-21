@@ -16,7 +16,7 @@ namespace ZooKeeperNetCoreTest
         static void Main(string[] args)
         {
             InternalLoggerFactory.DefaultFactory.AddProvider(new ConsoleLoggerProvider((s, level) => true, false));
-
+            var a=DateTime.UtcNow.Ticks/100;
             TT:
 
             ZKClientTest();
