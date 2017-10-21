@@ -642,7 +642,7 @@ namespace ZooKeeperNet
             if (p.watchRegistration != null)
                 p.watchRegistration.Register(p.replyHeader.Err);
 
-            p.Finished = true;
+            p.SetFinished();
         }
 
         private int isDisposed = 0;
