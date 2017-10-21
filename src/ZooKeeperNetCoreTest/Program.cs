@@ -53,7 +53,7 @@ namespace ZooKeeperNetCoreTest
                 });
             });
             k.Wait();
-            Logger.Info("ZKClientTest " + sw.ElapsedMilliseconds);
+            Console.WriteLine("ZKClientTest " + sw.ElapsedMilliseconds);
         }
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace ZooKeeperNetCoreTest
                 });
             });
             k.Wait();
-            Logger.Info("ConfigsManagerTest " + sw.ElapsedMilliseconds);
+            Console.WriteLine("ConfigsManagerTest " + sw.ElapsedMilliseconds);
         }
 
         /// <summary>
@@ -98,7 +98,7 @@ namespace ZooKeeperNetCoreTest
             });
 
             k.Wait();
-            Logger.Info("HttpTest " + sw.ElapsedMilliseconds);
+            Console.WriteLine("HttpTest " + sw.ElapsedMilliseconds);
         }
     }
 }
