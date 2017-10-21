@@ -256,7 +256,10 @@ namespace ZooKeeperNet
                 try
                 {
                     // close the connection
-                    tcpClient.Shutdown(SocketShutdown.Both);
+                    if (tcpClient.Connected)
+                    {
+                        tcpClient.Shutdown(SocketShutdown.Both);
+                    }
                     tcpClient.Close();
                 }
                 catch (IOException e)
