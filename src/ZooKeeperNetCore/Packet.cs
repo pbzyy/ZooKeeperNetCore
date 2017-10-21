@@ -97,13 +97,10 @@ namespace ZooKeeperNet
             return packetCompletion.Task;
         }
 
-        internal bool Finished
+        internal void SetFinished()
         {
-            set
-            {
-                Task.Factory.StartNew(s => ((TaskCompletionSource<bool>)s).TrySetResult(true),
+            Task.Factory.StartNew(s => ((TaskCompletionSource<bool>)s).TrySetResult(true),
                  packetCompletion, CancellationToken.None, TaskCreationOptions.PreferFairness, TaskScheduler.Default);
-            }
         }
 
         public override string ToString()
