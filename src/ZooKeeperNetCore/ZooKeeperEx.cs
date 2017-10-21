@@ -37,9 +37,9 @@ namespace ZooKeeperNet
             return value;
         }
 
-        public static long Nanos(this DateTime dateTime)
+        public static long Ticks(this DateTime dateTime)
         {
-            return dateTime.Ticks / 100;
+            return dateTime.Ticks;
         }
 
         public static bool IsEmpty<T>(this IEnumerable<T> collection)
