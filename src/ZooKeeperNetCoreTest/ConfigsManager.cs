@@ -19,7 +19,12 @@ namespace ZooKeeperNetCoreTest
         private KeeperState _currentState;
         private TimeSpan _operationTimeOutTimeSpan = TimeSpan.FromMilliseconds(SessionTimeOut * 1.5);
 
+#if DEBUG
+        private const int SessionTimeOut = 10000;
+#else
         private const int SessionTimeOut = 4000;
+#endif
+
         private const string TimeFormat = "yyyy-MM-dd HH:mm:ss.fff";
         private readonly string _hostport;
 
