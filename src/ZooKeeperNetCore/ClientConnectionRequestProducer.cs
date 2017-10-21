@@ -23,7 +23,6 @@ namespace ZooKeeperNet
 
         private readonly ClientConnection conn;
         private readonly ZooKeeper zooKeeper;
-        private Task requestTask;
 
         private readonly ConcurrentQueue<Packet> pendingQueue = new ConcurrentQueue<Packet>();
         private readonly LinkedList<Packet> outgoingQueue = new LinkedList<Packet>();
@@ -80,7 +79,16 @@ namespace ZooKeeperNet
 
         public void Start()
         {
-            requestTask = SendRequests();
+            Task.Factory.StartNew(
+                async o =>
+                {
+                    var c = (ClientConnectionRequestProducer)o;
+                    await c.SendRequests();
+                },
+                this,
+                default(CancellationToken),
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
         }
 
         public Packet QueuePacket(RequestHeader h, ReplyHeader r, IRecord request, IRecord response, string clientPath, string serverPath, ZooKeeper.WatchRegistration watchRegistration)
@@ -652,14 +660,6 @@ namespace ZooKeeperNet
             if (Interlocked.CompareExchange(ref isDisposed, 1, 0) == 0)
             {
                 zooKeeper.State = ZooKeeper.States.CLOSED;
-                try
-                {
-                    requestTask.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warn("Error disposing {} : {}", this.GetType().FullName, ex.Message);
-                }
                 
                 incomingBuffer = juteBuffer = null;
             }
