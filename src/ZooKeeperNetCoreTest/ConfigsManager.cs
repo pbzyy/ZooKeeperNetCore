@@ -22,7 +22,7 @@ namespace ZooKeeperNetCoreTest
 #if DEBUG
         private const int SessionTimeOut = 10000;
 #else
-        private const int SessionTimeOut = 4000;
+        private const int SessionTimeOut = 5000;
 #endif
 
         private const string TimeFormat = "yyyy-MM-dd HH:mm:ss.fff";

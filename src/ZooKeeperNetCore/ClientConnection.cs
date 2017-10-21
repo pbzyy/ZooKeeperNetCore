@@ -349,11 +349,8 @@ namespace ZooKeeperNet
             ReplyHeader r = new ReplyHeader();
             Packet p = QueuePacket(h, r, request, response, null, null, watchRegistration, null, null);
 
-            var flag = await p.WaitUntilFinishedSlim(SessionTimeout).ConfigureAwait(false);
-            if (!flag)
-            {
-                throw new TimeoutException(new StringBuilder("The request ").Append(request).Append(" timed out while waiting for a response from the server.").ToString());
-            }
+            await p.WaitUntilFinished().ConfigureAwait(false);
+
             return r;
         }
 
