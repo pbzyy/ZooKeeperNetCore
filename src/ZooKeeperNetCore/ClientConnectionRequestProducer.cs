@@ -139,6 +139,7 @@ namespace ZooKeeperNet
 
                         await StartConnect().ConfigureAwait(false); ;
 
+                        now = GetDateTimeUtcNow();
                         lastSend = now;
                         lastHeard = now;
                     }
