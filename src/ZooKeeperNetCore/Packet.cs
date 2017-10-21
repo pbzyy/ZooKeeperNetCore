@@ -90,17 +90,16 @@ namespace ZooKeeperNet
             this.watchRegistration = watchRegistration;
         }
 
-        private readonly TaskCompletionSource<bool> packetCompletion = new TaskCompletionSource<bool>();
+        private readonly SemaphoreSlim mreslim = new SemaphoreSlim(0);
 
-        public Task<bool> WaitUntilFinished()
+        public Task WaitUntilFinishedSlim()
         {
-            return packetCompletion.Task;
+            return mreslim.WaitAsync();
         }
 
         internal void SetFinished()
         {
-            Task.Factory.StartNew(s => ((TaskCompletionSource<bool>)s).TrySetResult(true),
-                 packetCompletion, CancellationToken.None, TaskCreationOptions.PreferFairness, TaskScheduler.Default);
+            mreslim.Release();
         }
 
         public override string ToString()
