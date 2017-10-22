@@ -40,7 +40,6 @@ namespace ZooKeeperNet
         private int finished;
         internal ZooKeeper.WatchRegistration watchRegistration;
         internal readonly byte[] data;
-        public readonly DateTime DateCreated;
 
         /** Client's view of the path (may differ due to chroot) **/
         private string clientPath;
