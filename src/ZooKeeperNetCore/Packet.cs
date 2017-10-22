@@ -99,6 +99,7 @@ namespace ZooKeeperNet
 
         internal void SetFinished()
         {
+            finished = 1;
             mreslim.Release();
         }
 
