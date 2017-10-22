@@ -17,6 +17,7 @@
  */
 
 using System.Threading.Tasks;
+using ZooKeeperNet.Logging;
 
 namespace ZooKeeperNet
 {
@@ -27,13 +28,12 @@ namespace ZooKeeperNet
     using System.Net.Sockets;
     using System.Text;
     using System.Threading;
-    //using log4net;
     using Org.Apache.Jute;
     using Org.Apache.Zookeeper.Proto;
 
     public class ClientConnection : IClientConnection
     {
-        //private static readonly ILog LOG = LogManager.GetLogger(typeof(ClientConnection));
+        private static readonly IInternalLogger Logger = InternalLoggerFactory.GetInstance<ClientConnection>();
 
         private static readonly TimeSpan DefaultConnectTimeout = TimeSpan.FromMilliseconds(1000);        
         private static bool disableAutoWatchReset = false;
@@ -366,9 +366,8 @@ namespace ZooKeeperNet
         {
             if(Interlocked.CompareExchange(ref isClosed,1,0) == 0)
             {
-                //closing = true;
-                //if (LOG.IsDebugEnabled)
-                //    LOG.DebugFormat("Closing client for session: 0x{0:X}", SessionId);
+                if (Logger.DebugEnabled)
+                    Logger.Debug("Closing client for session: 0x{}", SessionId.ToString("X"));
 
                 try
                 {
@@ -390,13 +389,9 @@ namespace ZooKeeperNet
                         }
                     }
                 }
-                catch (ThreadInterruptedException)
-                {
-                    // ignore, close the send/event threads
-                }
                 catch (Exception ex)
                 {
-                    //LOG.WarnFormat("Error disposing {0} : {1}", this.GetType().FullName, ex.Message);
+                    Logger.Warn("Error disposing {} : {}", this.GetType().FullName, ex.Message);
                 }
                 finally
                 {

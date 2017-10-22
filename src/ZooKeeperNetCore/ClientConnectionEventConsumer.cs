@@ -18,6 +18,9 @@
 
 //using log4net;
 
+using System.Threading.Tasks;
+using ZooKeeperNet.Logging;
+
 namespace ZooKeeperNet
 {
     using System;
@@ -28,10 +31,9 @@ namespace ZooKeeperNet
 
     public class ClientConnectionEventConsumer : IStartable, IDisposable
     {
-        //private static readonly ILog LOG = LogManager.GetLogger(typeof(ClientConnectionEventConsumer));
+        private static readonly IInternalLogger Logger = InternalLoggerFactory.GetInstance<ClientConnectionEventConsumer>();
 
         private readonly ClientConnection conn;
-        private readonly Thread eventThread;
         //ConcurrentQueue gives us the non-blocking way of processing, it reduced the contention so much
         internal readonly BlockingCollection<ClientConnection.WatcherSetEventPair> waitingEvents = new BlockingCollection<ClientConnection.WatcherSetEventPair>();
         
@@ -43,16 +45,24 @@ namespace ZooKeeperNet
 
         public ClientConnectionEventConsumer(ClientConnection conn)
         {
-            this.conn = conn;
-            eventThread = new Thread(new SafeThreadStart(PollEvents).Run) { Name = new StringBuilder("ZK-EventThread ").Append(conn.zooKeeper.Id).ToString(), IsBackground = true };
+            this.conn = conn;         
         }
 
         public void Start()
         {
-            eventThread.Start();
+            Task.Factory.StartNew(
+             async o =>
+             {
+                 var c = (ClientConnectionEventConsumer)o;
+                 await c.PollEvents();
+             },
+             this,
+             default(CancellationToken),
+             TaskCreationOptions.LongRunning,
+             TaskScheduler.Default);;
         }
 
-        private static void ProcessWatcher(IEnumerable<IWatcher> watchers,WatchedEvent watchedEvent)
+        private static async Task ProcessWatcher(IEnumerable<IWatcher> watchers,WatchedEvent watchedEvent)
         {
             foreach (IWatcher watcher in watchers)
             {
@@ -60,52 +70,45 @@ namespace ZooKeeperNet
                 {
                     if (null != watcher)
                     {
-                        watcher.Process(watchedEvent);
+                        await watcher.Process(watchedEvent);
                     }
                 }
                 catch (Exception t)
                 {
-                    //LOG.Error("Error while calling watcher ", t);
+                    Logger.Error("Error while calling watcher ", t);
                 }
             }
         }
 
-        public void PollEvents()
+        private async Task PollEvents()
         {
-            try
+            while (!waitingEvents.IsCompleted)
             {
-                while(!waitingEvents.IsCompleted)
+                try
                 {
-                    try
+                    ClientConnection.WatcherSetEventPair pair = null;
+                    if (waitingEvents.TryTake(out pair, -1))
                     {
-                        ClientConnection.WatcherSetEventPair pair = null;
-                        if (waitingEvents.TryTake(out pair, -1))
-                        {
-                            ProcessWatcher(pair.Watchers, pair.WatchedEvent);
-                        }
-                    }
-                    catch (ObjectDisposedException)
-                    {
-                    }
-                    catch (InvalidOperationException)
-                    {
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        //ignored
-                    }
-                    catch (Exception t)
-                    {
-                        //LOG.Error("Caught unexpected throwable", t);
+                        await ProcessWatcher(pair.Watchers, pair.WatchedEvent);
                     }
                 }
-            }
-            catch (ThreadInterruptedException e)
-            {
-                //LOG.Error("Event thread exiting due to interruption", e);
+                catch (ObjectDisposedException)
+                {
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (OperationCanceledException)
+                {
+                    //ignored
+                }
+                catch (Exception t)
+                {
+                    Logger.Error("Caught unexpected throwable", t);
+                }
             }
 
-            //LOG.Info("EventThread shut down");
+            Logger.Info("EventThread shut down");
         }
 
         public void QueueEvent(WatchedEvent @event)
@@ -128,19 +131,7 @@ namespace ZooKeeperNet
         {
             if (Interlocked.CompareExchange(ref isDisposed, 1, 0) == 0)
             {
-                try
-                {
-                    waitingEvents.CompleteAdding();
-
-                    if (eventThread.IsAlive)
-                    {
-                        eventThread.Join();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    //LOG.WarnFormat("Error disposing {0} : {1}", this.GetType().FullName, ex.Message);
-                }
+                waitingEvents.CompleteAdding();
             }
         }
 

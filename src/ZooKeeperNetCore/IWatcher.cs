@@ -15,10 +15,13 @@
  *  limitations under the License.
  *
  */
-﻿namespace ZooKeeperNet
+
+using System.Threading.Tasks;
+
+namespace ZooKeeperNet
 {
     public interface IWatcher
     {      
-        void Process(WatchedEvent @event);
+        Task Process(WatchedEvent @event);
     }
 }

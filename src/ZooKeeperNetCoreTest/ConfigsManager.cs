@@ -42,7 +42,7 @@ namespace ZooKeeperNetCoreTest
             _zooKeeper = new ZooKeeper(_hostport, TimeSpan.FromMilliseconds(timeout), this);
         }
 
-        public async void Process(WatchedEvent @event)
+        public async Task Process(WatchedEvent @event)
         {
             SetCurrentState(@event.State);
 
@@ -170,7 +170,7 @@ namespace ZooKeeperNetCoreTest
                 this._configs = configs;
             }
 
-            public async void Process(WatchedEvent @event)
+            public async Task Process(WatchedEvent @event)
             {
                 if (@event?.Path == null) return;
 
