@@ -74,7 +74,7 @@ namespace ZooKeeperNet
 
         protected int Xid
         {
-            get { return xid++; }
+            get { return Interlocked.Increment(ref xid); }
         }
 
         public void Start()
