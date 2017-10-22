@@ -33,7 +33,6 @@ namespace ZooKeeperNetCoreTest
             get { return DateTime.Now.ToString(TimeFormat); }
         }
 
-        private volatile bool _signal;
         private volatile ZooKeeper _zooKeeper;
 
         public ConfigsManager(string hostport, int timeout = SessionTimeOut)
@@ -42,7 +41,7 @@ namespace ZooKeeperNetCoreTest
             _zooKeeper = new ZooKeeper(_hostport, TimeSpan.FromMilliseconds(timeout), this);
         }
 
-        public async Task Process(WatchedEvent @event)
+        public Task Process(WatchedEvent @event)
         {
             SetCurrentState(@event.State);
 
@@ -53,25 +52,28 @@ namespace ZooKeeperNetCoreTest
                 switch (@event.State)
                 {
                     case KeeperState.SyncConnected:
-                        _stateChangedCondition.Set();
-
-                        if (_signal)
-                            await GetAllNodes();
-
-                        _signal = true;
 
                         Logger.Info($"{DateNowStr} SyncConnected");
+
+                        _stateChangedCondition.Set();
+
+                        _allZookeeperNodes = null;
+
                         break;
                     case KeeperState.Expired:
-                        ReConnect();
 
                         Logger.Warn($"{DateNowStr} Expired, ReConnect");
+
+                        ReConnect();
+
                         break;
                     case KeeperState.Disconnected:
                         Logger.Info($"{DateNowStr} Disconnected");
                         break;
                 }
             }
+
+            return Task.CompletedTask;
         }
 
         private void ReConnect()
@@ -283,7 +285,7 @@ namespace ZooKeeperNetCoreTest
 
                     await Task.Delay(4000);
                 }
-            }          
+            }
         }
 
         private async Task NodesRecursion(ZookeeperNode node, string path)
