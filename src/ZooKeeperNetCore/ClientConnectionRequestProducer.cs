@@ -160,8 +160,6 @@ namespace ZooKeeperNet
                             string warnInfo =
                                   $"Client session timed out, have not heard from server in {idleRec.TotalMilliseconds}ms for sessionid 0x{conn.SessionId.ToString("X")}";
 
-                            Logger.Warn(warnInfo);
-
                             throw new SessionTimeoutException(warnInfo);
                         }
                     }
