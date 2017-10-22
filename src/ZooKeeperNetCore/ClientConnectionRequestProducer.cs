@@ -287,6 +287,8 @@ namespace ZooKeeperNet
             client = null;
         }
 
+        private bool firstConnect = true;
+
         private async Task StartConnect()
         {
             zooKeeper.State = ZooKeeper.States.CONNECTING;
@@ -306,6 +308,12 @@ namespace ZooKeeperNet
                 //advance through available connections;
                 zkEndpoints.GetNextAvailableEndpoint();
 
+                if (!firstConnect)
+                {
+                    Cleanup(null);
+                }
+
+                firstConnect = false;
                 Logger.Info("{} Opening socket connection to server {}", DateTimeUtcNowStr, zkEndpoints.CurrentEndPoint.ServerAddress);
                 tempClient = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 tempClient.LingerState = new LingerOption(false, 0);
