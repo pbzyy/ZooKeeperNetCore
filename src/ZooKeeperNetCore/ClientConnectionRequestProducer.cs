@@ -77,18 +77,11 @@ namespace ZooKeeperNet
             get { return Interlocked.Increment(ref xid); }
         }
 
+        private Task sendTask;
+
         public void Start()
         {
-            Task.Factory.StartNew(
-                async o =>
-                {
-                    var c = (ClientConnectionRequestProducer)o;
-                    await c.SendRequests();
-                },
-                this,
-                default(CancellationToken),
-                TaskCreationOptions.LongRunning,
-                TaskScheduler.Default);
+            sendTask = SendRequests();
         }
 
         public Packet QueuePacket(RequestHeader h, ReplyHeader r, IRecord request, IRecord response, string clientPath, string serverPath, ZooKeeper.WatchRegistration watchRegistration)

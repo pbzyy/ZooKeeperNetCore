@@ -48,18 +48,11 @@ namespace ZooKeeperNet
             this.conn = conn;         
         }
 
+        private Task eventTask;
+
         public void Start()
         {
-            Task.Factory.StartNew(
-             async o =>
-             {
-                 var c = (ClientConnectionEventConsumer)o;
-                 await c.PollEvents();
-             },
-             this,
-             default(CancellationToken),
-             TaskCreationOptions.LongRunning,
-             TaskScheduler.Default);;
+            eventTask = PollEvents();
         }
 
         private static async Task ProcessWatcher(IEnumerable<IWatcher> watchers,WatchedEvent watchedEvent)
