@@ -373,7 +373,7 @@ namespace ZooKeeperNet
                 try
                 {
                     var task = SubmitRequest(new RequestHeader {Type = (int) OpCode.CloseSession}, null, null, null);
-                    task.Wait();
+                    task.GetAwaiter().GetResult();
                     SpinWait spin = new SpinWait();
                     DateTime timeoutAt = DateTime.UtcNow.Add(SessionTimeout);
                     while (!producer.IsConnectionClosedByServer)
