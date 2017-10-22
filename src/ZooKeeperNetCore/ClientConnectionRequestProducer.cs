@@ -307,7 +307,7 @@ namespace ZooKeeperNet
                 zkEndpoints.GetNextAvailableEndpoint();
 
                 Cleanup(tempClient);
-                Logger.Info("Opening socket connection to server {}", zkEndpoints.CurrentEndPoint.ServerAddress);
+                Logger.Info("{} Opening socket connection to server {}", DateTimeUtcNowStr, zkEndpoints.CurrentEndPoint.ServerAddress);
                 tempClient = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 tempClient.LingerState = new LingerOption(false, 0);
                 tempClient.NoDelay = true;
@@ -321,7 +321,7 @@ namespace ZooKeeperNet
                     await tempClient.ConnectAsync(zkEndpoints.CurrentEndPoint.ServerAddress.Address,
                         zkEndpoints.CurrentEndPoint.ServerAddress.Port);
 
-                    Logger.Info("socket Connectd  to server {}", zkEndpoints.CurrentEndPoint.ServerAddress);
+                    Logger.Info("{} socket Connectd  to server {}", DateTimeUtcNowStr, zkEndpoints.CurrentEndPoint.ServerAddress);
 
                     break;
                 }
@@ -353,6 +353,11 @@ namespace ZooKeeperNet
             client = tempClient;
             client.BeginReceive(incomingBuffer, 0, incomingBuffer.Length, SocketFlags.None, ReceiveAsynch, incomingBuffer);
             PrimeConnection();
+        }
+
+        private static string DateTimeUtcNowStr
+        {
+            get { return GetDateTimeUtcNow().ToString("yyyy-MM-dd HH:mm:ss.fff"); }
         }
 
         private byte[] juteBuffer;
