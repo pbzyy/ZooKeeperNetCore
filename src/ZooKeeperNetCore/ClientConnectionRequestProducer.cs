@@ -306,7 +306,6 @@ namespace ZooKeeperNet
                 //advance through available connections;
                 zkEndpoints.GetNextAvailableEndpoint();
 
-                Cleanup(tempClient);
                 Logger.Info("{} Opening socket connection to server {}", DateTimeUtcNowStr, zkEndpoints.CurrentEndPoint.ServerAddress);
                 tempClient = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
                 tempClient.LingerState = new LingerOption(false, 0);
