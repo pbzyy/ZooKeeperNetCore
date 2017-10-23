@@ -352,6 +352,7 @@ namespace ZooKeeperNet
 
             client = tempClient;
             client.BeginReceive(incomingBuffer, 0, incomingBuffer.Length, SocketFlags.None, ReceiveAsynch, incomingBuffer);
+
             PrimeConnection();
         }
 
@@ -412,36 +413,50 @@ namespace ZooKeeperNet
                 recvCount++;
 
                 if (bData == incomingBuffer) // if bData is incoming then surely it is a length information
-                {                    
-                    currentLen = 0;
-                    juteBuffer = null;
-                    // get the length information from the stream
-                    juteBuffer = new byte[ReadLength(bData)];
-
-                    // try getting other info from the stream
-                    client.BeginReceive(juteBuffer, 0, juteBuffer.Length, SocketFlags.None, ReceiveAsynch, juteBuffer);
-                }
-                else // not an incoming buffer then it is surely a zookeeper process information
                 {
-                    if (Interlocked.CompareExchange(ref initialized,1,0) == 0)
+                    currentLen += len;
+                    if (incomingBuffer.Length > currentLen)
                     {
-                        // haven't been initialized so read the authentication negotiation result
-                        ReadConnectResult(bData);
-
-                        lastHeard = GetDateTimeUtcNow();
-
-                        // reading length information
-                        client.BeginReceive(incomingBuffer, 0, incomingBuffer.Length, SocketFlags.None, ReceiveAsynch, incomingBuffer);
+                        client.BeginReceive(incomingBuffer, currentLen, incomingBuffer.Length - currentLen, SocketFlags.None, ReceiveAsynch, incomingBuffer);
                     }
                     else
                     {
-                        currentLen += len;
-                        if (juteBuffer.Length > currentLen) // stream haven't been completed so read any left bytes
+                        currentLen = 0;
+
+                        juteBuffer = null;
+                        
+                        // get the length information from the stream
+                        juteBuffer = new byte[ReadLength(bData)];
+
+                        // try getting other info from the stream
+                        client.BeginReceive(juteBuffer, 0, juteBuffer.Length, SocketFlags.None, ReceiveAsynch, juteBuffer);
+                    }
+                }
+                else // not an incoming buffer then it is surely a zookeeper process information
+                {
+                    currentLen += len;
+                    if (juteBuffer.Length > currentLen) // stream haven't been completed so read any left bytes
+                    {
+                        client.BeginReceive(juteBuffer, currentLen, juteBuffer.Length - currentLen, SocketFlags.None, ReceiveAsynch, juteBuffer);
+                    }
+                    else
+                    {
+                        if (Interlocked.CompareExchange(ref initialized, 1, 0) == 0)
                         {
-                            client.BeginReceive(juteBuffer, currentLen, juteBuffer.Length - currentLen, SocketFlags.None, ReceiveAsynch, juteBuffer);
+                            currentLen = 0;
+
+                            // haven't been initialized so read the authentication negotiation result
+                            ReadConnectResult(bData);
+
+                            lastHeard = GetDateTimeUtcNow();
+
+                            // reading length information
+                            client.BeginReceive(incomingBuffer, 0, incomingBuffer.Length, SocketFlags.None, ReceiveAsynch, incomingBuffer);
                         }
                         else
                         {
+                            currentLen = 0;
+
                             // stream is complete so read the response
                             ReadResponse(bData);
 
