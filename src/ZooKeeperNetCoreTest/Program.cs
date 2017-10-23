@@ -11,7 +11,7 @@ namespace ZooKeeperNetCoreTest
     {
         private static readonly IInternalLogger Logger = InternalLoggerFactory.GetInstance<Program>();
 
-        private static Lazy<ConfigsManager> _cmLazy = new Lazy<ConfigsManager>(() => new ConfigsManager("10.1.62.17"));
+        private static Lazy<ConfigsManager> _cmLazy = new Lazy<ConfigsManager>(() => new ConfigsManager("10.1.4.204"));
 
         static void Main(string[] args)
         {
