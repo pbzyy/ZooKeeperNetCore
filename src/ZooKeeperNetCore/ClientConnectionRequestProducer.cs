@@ -90,7 +90,7 @@ namespace ZooKeeperNet
                 h.Xid = Xid;
 
             Packet p = new Packet(h, r, request, response, null, watchRegistration, clientPath, serverPath);
-
+    
             if (!zooKeeper.State.IsAlive() || closing || Interlocked.CompareExchange(ref isDisposed, 0, 0) == 1)
             {
                 if(Logger.DebugEnabled)
@@ -394,7 +394,7 @@ namespace ZooKeeperNet
                 }
                 catch(Exception ex)
                 {
-                    Logger.Error("EndReceive Error len:{} ex:{} ", ex, len);
+                    Logger.Error("EndReceive Error len:{} ex:{} ", len, ex);
                 }
                 if (len == 0) //server closed the connection...
                 {
@@ -417,6 +417,7 @@ namespace ZooKeeperNet
                     juteBuffer = null;
                     // get the length information from the stream
                     juteBuffer = new byte[ReadLength(bData)];
+
                     // try getting other info from the stream
                     client.BeginReceive(juteBuffer, 0, juteBuffer.Length, SocketFlags.None, ReceiveAsynch, juteBuffer);
                 }
@@ -436,7 +437,9 @@ namespace ZooKeeperNet
                     {
                         currentLen += len;
                         if (juteBuffer.Length > currentLen) // stream haven't been completed so read any left bytes
+                        {
                             client.BeginReceive(juteBuffer, currentLen, juteBuffer.Length - currentLen, SocketFlags.None, ReceiveAsynch, juteBuffer);
+                        }
                         else
                         {
                             // stream is complete so read the response
@@ -510,6 +513,7 @@ namespace ZooKeeperNet
             {
                 pendingQueue.Enqueue(packet);
             }
+   
             await client.SendAsync(new ArraySegment<byte>(packet.data, 0, packet.data.Length), SocketFlags.None);
             sentCount++;
         }
@@ -555,7 +559,6 @@ namespace ZooKeeperNet
             {
                 BinaryInputArchive bbia = BinaryInputArchive.GetArchive(reader);
                 ReplyHeader replyHdr = new ReplyHeader();
-
                 replyHdr.Deserialize(bbia, "header");
                 if (replyHdr.Xid == -2)
                 {
@@ -614,8 +617,19 @@ namespace ZooKeeperNet
                     {
                         if (packet.header.Xid != replyHdr.Xid)
                         {
+
                             packet.replyHeader.Err = (int)KeeperException.Code.CONNECTIONLOSS;
-                            throw new IOException(new StringBuilder("Xid out of order. Got ").Append(replyHdr.Xid).Append(" expected ").Append(packet.header.Xid).ToString());
+                            var str = new StringBuilder("Xid out of order. Got ")
+                                .Append(replyHdr.Xid)
+                                .Append(" expected ")
+                                .Append(packet.header.Xid)
+                                .Append(" data ")
+                                .Append(ToHexString(content))
+                                .Append(" datalen ")
+                                .Append(content.Length)
+                                .ToString();
+
+                            throw new IOException(str);                  
                         }
 
                         packet.replyHeader.Xid = replyHdr.Xid;
@@ -653,6 +667,22 @@ namespace ZooKeeperNet
                 p.replyHeader.Err = (int)KeeperException.Code.CONNECTIONLOSS;
 
             FinishPacket(p);
+        }
+
+        private static string ToHexString(byte[] bytes)
+        {
+            string hexString = string.Empty;
+            if (bytes != null)
+            {
+                StringBuilder strB = new StringBuilder();
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    strB.Append(bytes[i].ToString("X2"));
+                }
+                hexString = strB.ToString();
+
+            }
+            return hexString;
         }
 
         private static void FinishPacket(Packet p)
