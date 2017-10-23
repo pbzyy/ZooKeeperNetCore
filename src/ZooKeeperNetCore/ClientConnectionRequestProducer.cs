@@ -617,19 +617,8 @@ namespace ZooKeeperNet
                     {
                         if (packet.header.Xid != replyHdr.Xid)
                         {
-
                             packet.replyHeader.Err = (int)KeeperException.Code.CONNECTIONLOSS;
-                            var str = new StringBuilder("Xid out of order. Got ")
-                                .Append(replyHdr.Xid)
-                                .Append(" expected ")
-                                .Append(packet.header.Xid)
-                                .Append(" data ")
-                                .Append(ToHexString(content))
-                                .Append(" datalen ")
-                                .Append(content.Length)
-                                .ToString();
-
-                            throw new IOException(str);                  
+                            throw new IOException($"Xid out of order. Got {replyHdr.Xid} expected {packet.header.Xid}");                  
                         }
 
                         packet.replyHeader.Xid = replyHdr.Xid;
