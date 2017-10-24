@@ -313,15 +313,7 @@ namespace ZooKeeperNetCoreTest
                     Childrens = new List<ZookeeperNode>()
                 };
 
-                try
-                {
-                    if (child.Value != null && child.Value.StartsWith("{"))
-                        child.Host = JsonConvert.DeserializeObject<Host>(child.Value);
-                }
-                catch
-                {
-                    // ignored
-                }
+                child.Host = SafeDeserializeObject<Host>(child.Value);
 
                 node.Childrens.Add(child);
 
@@ -338,18 +330,21 @@ namespace ZooKeeperNetCoreTest
             if (string.IsNullOrEmpty(path))
                 throw new ArgumentException("path cannot be null or empty");
 
+            if (path == "/")
+                return allNodes;
+
             path = path.Trim(new[] { '/' });
             string[] tiers = path.Split('/');
 
-            ZookeeperNode returnNode = allNodes;
+            ZookeeperNode configNode = allNodes;
             for (int i = 0; i < tiers.Length; i++)
             {
-                var temp = tiers[i];
-                returnNode = returnNode.Childrens.FirstOrDefault(node => node.Name == temp);
+                configNode = configNode.Childrens.FirstOrDefault(node => node.Name == tiers[i]);
+                if (configNode == null)
+                    return null;
             }
 
-
-            return returnNode;
+            return configNode;
 
         }
 
@@ -409,19 +404,9 @@ namespace ZooKeeperNetCoreTest
             {
                 Name = tiers[tiers.Length - 1],
                 Value = value,
-                Childrens = new List<ZookeeperNode>()
+                Childrens = new List<ZookeeperNode>(),
+                Host = SafeDeserializeObject<Host>(value)
             };
-
-            try
-            {
-                if (value.StartsWith("{"))
-                    configNodes.Host = JsonConvert.DeserializeObject<Host>(value);
-            }
-            catch
-            {
-                // ignored
-            }
-
             configNode.Childrens.Add(configNodes);
         }
 
@@ -452,17 +437,8 @@ namespace ZooKeeperNetCoreTest
 
             configNode.Value = value;
 
-            try
-            {
-                if (value.StartsWith("{"))
-                    configNode.Host = JsonConvert.DeserializeObject<Host>(value);
-            }
-            catch
-            {
-                // ignored
-            }
+            configNode.Host = SafeDeserializeObject<Host>(value);        
         }
-
 
         async Task SetNodes(string path)
         {
@@ -470,21 +446,23 @@ namespace ZooKeeperNetCoreTest
             if (allNodes == null)
                 return;
 
-            if (string.IsNullOrEmpty(path))
-                return;
-
-            string[] tiers = path.Split('/');
-
-            if (tiers.Length == 1)
-                return;
-
             ZookeeperNode configNode = allNodes;
-
-            for (int i = 1; i < tiers.Length; i++)
+            if (path != "/")
             {
-                configNode = configNode.Childrens.FirstOrDefault(node => node.Name == tiers[i]);
-                if (configNode == null)
+                if (string.IsNullOrEmpty(path))
                     return;
+
+                string[] tiers = path.Split('/');
+
+                if (tiers.Length == 1)
+                    return;
+
+                for (int i = 1; i < tiers.Length; i++)
+                {
+                    configNode = configNode.Childrens.FirstOrDefault(node => node.Name == tiers[i]);
+                    if (configNode == null)
+                        return;
+                }
             }
 
             string value = await GetData<string>(path, this.Watcher);
@@ -500,6 +478,21 @@ namespace ZooKeeperNetCoreTest
             await NodesRecursion(newNode, path);
 
             configNode.Childrens = newNode.Childrens;
+        }
+
+        private static T SafeDeserializeObject<T>(string value) where T : class
+        {
+            T obj = default(T);
+            try
+            {
+                if (value != null && value.StartsWith("{"))
+                    obj = JsonConvert.DeserializeObject<T>(value);
+            }
+            catch
+            {
+                // ignored
+            }
+            return obj;
         }
 
         private static byte[] Serialize<T>(T model)
