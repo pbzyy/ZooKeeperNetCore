@@ -58,7 +58,7 @@ namespace ZooKeeperNet
              },
              this,
              default(CancellationToken),
-             TaskCreationOptions.LongRunning,
+             TaskCreationOptions.DenyChildAttach,
              TaskScheduler.Default);;
         }
 
