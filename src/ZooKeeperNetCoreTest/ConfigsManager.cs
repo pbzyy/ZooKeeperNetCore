@@ -147,14 +147,22 @@ namespace ZooKeeperNetCoreTest
         }
 
         private IWatcher _watcher;
+        private readonly object _locker = new object();
 
         private IWatcher Watcher
         {
             get
             {
                 if (_watcher == null)
-                    _watcher = new NodeWatcher(this);
-
+                {
+                    lock (_locker)
+                    {
+                        if (_watcher == null)
+                        {
+                            _watcher = new NodeWatcher(this);
+                        }
+                    }
+                }
                 return _watcher;
             }
         }
