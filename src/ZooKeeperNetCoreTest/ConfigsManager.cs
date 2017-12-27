@@ -1,149 +1,79 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using ZooKeeperNet.Logging;
 using Newtonsoft.Json;
-using Org.Apache.Zookeeper.Data;
 using ZooKeeperNet;
 
 namespace ZooKeeperNetCoreTest
 {
-    public class ConfigsManager : IWatcher
+    public class NodeWatcher : IWatcher
+    {
+        private const string TimeFormat = "yyyy-MM-dd HH:mm:ss.fff";
+        private static readonly IInternalLogger Logger = InternalLoggerFactory.GetInstance<NodeWatcher>();
+        readonly IConfigs _configs;
+
+        public NodeWatcher(IConfigs configs)
+        {
+            this._configs = configs;
+        }
+
+        public async Task Process(WatchedEvent @event)
+        {
+            if (@event?.Path == null) return;
+
+            if (@event.Type == EventType.None)
+                return;
+
+            Logger.Info($"{DateTime.Now.ToString(TimeFormat)}" + @event);
+
+            switch (@event.Type)
+            {
+                case EventType.NodeDataChanged:
+                    await _configs.UpdateConfig(@event.Path);
+                    break;
+                case EventType.NodeDeleted:
+                    await _configs.DeleteConfig(@event.Path);
+                    break;
+                case EventType.NodeCreated:
+                    await _configs.CreateConfig(@event.Path);
+                    break;
+                case EventType.NodeChildrenChanged:
+                    await _configs.SetNodes(@event.Path);
+                    break;
+            }
+        }
+    }
+
+    public interface IConfigs
+    {
+        Task CreateConfig(string path);
+
+        Task UpdateConfig(string path);
+
+        Task DeleteConfig(string path);
+
+        Task SetNodes(string path);
+    }
+
+    public class ConfigsManager: IConfigs
     {
         private static readonly IInternalLogger Logger = InternalLoggerFactory.GetInstance<ConfigsManager>();
 
-        private readonly AutoResetEvent _stateChangedCondition = new AutoResetEvent(false);
-        private KeeperState _currentState;
-        private TimeSpan _operationTimeOutTimeSpan = TimeSpan.FromMilliseconds(SessionTimeOut * 1.5);
-
-        private const int SessionTimeOut = 10000;
-
         private const string TimeFormat = "yyyy-MM-dd HH:mm:ss.fff";
-        private readonly string _hostport;
 
         private string DateNowStr
         {
             get { return DateTime.Now.ToString(TimeFormat); }
         }
 
-        private volatile ZooKeeper _zooKeeper;
+        private ZookeeperClient _zooKeeperClient;
 
-        public ConfigsManager(string hostport, int timeout = SessionTimeOut)
+        public ConfigsManager(string hostport)
         {
-            _hostport = hostport;
-            _zooKeeper = new ZooKeeper(_hostport, TimeSpan.FromMilliseconds(timeout), this);
-        }
-
-        public Task Process(WatchedEvent @event)
-        {
-            SetCurrentState(@event.State);
-
-            if (@event.Type == EventType.None)
-            {
-                Logger.Info($"{DateTime.Now.ToString(TimeFormat)}" + @event);
-
-                switch (@event.State)
-                {
-                    case KeeperState.SyncConnected:
-
-                        Logger.Info($"{DateNowStr} SyncConnected");
-
-                        _stateChangedCondition.Set();
-
-                        _allZookeeperNodes = null;
-
-                        break;
-                    case KeeperState.Expired:
-
-                        Logger.Warn($"{DateNowStr} Expired, ReConnect");
-
-                        ReConnect();
-
-                        break;
-                    case KeeperState.Disconnected:
-                        Logger.Info($"{DateNowStr} Disconnected");
-                        break;
-                }
-            }
-
-            return Task.CompletedTask;
-        }
-
-        private void ReConnect()
-        {
-            ZooKeeper oldzooKeeper = _zooKeeper;
-            try
-            {
-                _zooKeeper = new ZooKeeper(_hostport, TimeSpan.FromMilliseconds(SessionTimeOut), this);
-            }
-            finally
-            {
-                oldzooKeeper.Dispose();
-            }
-        }
-
-        private async Task<T> RetryUntilConnected<T>(Func<Task<T>> callable)
-        {
-            var operationStartTime = DateTime.Now;
-            while (true)
-            {
-
-                try
-                {
-                    return await callable();
-                }
-                catch (KeeperException.ConnectionLossException)
-                {
-                    WaitUntilConnected();
-                }
-                catch (KeeperException.SessionExpiredException)
-                {
-                    WaitUntilConnected();
-                }
-                catch (TimeoutException)
-                {
-                    WaitUntilConnected();
-                }
-
-                if (DateTime.Now - operationStartTime > _operationTimeOutTimeSpan)
-                {
-                    string msg =
-                        $"Operation cannot be retried because of retry timeout ({_operationTimeOutTimeSpan.TotalMilliseconds} milli seconds)";
-
-                    throw new TimeoutException(msg);
-                }
-            }
-        }
-
-        private void WaitUntilConnected()
-        {
-            WaitForKeeperState(KeeperState.SyncConnected, _operationTimeOutTimeSpan);
-        }
-
-        private bool WaitForKeeperState(KeeperState states, TimeSpan timeout)
-        {
-            var stillWaiting = true;
-            while (_currentState != states)
-            {
-                if (!stillWaiting)
-                {
-                    return false;
-                }
-
-                stillWaiting = _stateChangedCondition.WaitOne(timeout);
-            }
-            return true;
-        }
-
-        private void SetCurrentState(KeeperState state)
-        {
-            lock (this)
-            {
-                _currentState = state;
-            }
+            _zooKeeperClient = ZookeeperClientFactory.Get(hostport);
         }
 
         private IWatcher _watcher;
@@ -165,82 +95,6 @@ namespace ZooKeeperNetCoreTest
                 }
                 return _watcher;
             }
-        }
-
-        private class NodeWatcher : IWatcher
-        {
-            readonly ConfigsManager _configs;
-
-            public NodeWatcher(ConfigsManager configs)
-            {
-                this._configs = configs;
-            }
-
-            public async Task Process(WatchedEvent @event)
-            {
-                if (@event?.Path == null) return;
-
-                if (@event.Type == EventType.None)
-                    return;
-
-                Logger.Info($"{DateTime.Now.ToString(TimeFormat)}" + @event);
-
-                switch (@event.Type)
-                {
-                    case EventType.NodeDataChanged:
-                        await _configs.UpdateConfig(@event.Path);
-                        break;
-                    case EventType.NodeDeleted:
-                        await _configs.DeleteConfig(@event.Path);
-                        break;
-                    case EventType.NodeCreated:
-                        await _configs.CreateConfig(@event.Path);
-                        break;
-                    case EventType.NodeChildrenChanged:
-                        await _configs.SetNodes(@event.Path);
-                        break;
-                }
-            }
-        }
-
-        public async Task<bool> IsExist(string path)
-        {
-            Stat node = await RetryUntilConnected(async () => await _zooKeeper.Exists(path, true));
-
-            if (node == null)
-                return false;
-
-            return true;
-        }
-
-        public async Task<IEnumerable<string>> GetChilderen(string path, IWatcher watch = null)
-        {
-            return await RetryUntilConnected(async ()=> await _zooKeeper.GetChildren(path, watch));
-        }
-
-        public async Task<T> GetData<T>(string path, IWatcher watch = null)
-        {
-            var s = await RetryUntilConnected(async () => await _zooKeeper.GetData(path, watch, null));
-
-            return Deserialize<T>(s);
-        }
-
-        public async Task CreateData<T>(string path, T model)
-        {
-            await RetryUntilConnected(async () =>
-            {
-                await _zooKeeper.Create(path, Serialize(model), Ids.OPEN_ACL_UNSAFE, CreateMode.Persistent);
-                return 1;
-            });
-        }
-
-        public async Task DeleteData(string path, int version)
-        {
-            await RetryUntilConnected(async () => 
-            {
-                await _zooKeeper.Delete(path, version);
-                return 1;
-            });
         }
 
         private readonly SemaphoreSlim _semaphoreSlim = new SemaphoreSlim(1, 1);
@@ -276,6 +130,9 @@ namespace ZooKeeperNetCoreTest
                         }
 
                         _allZookeeperNodes = node;
+
+                        Logger.Info("all node init");
+
                         return _allZookeeperNodes;
                     }
                     finally
@@ -294,7 +151,7 @@ namespace ZooKeeperNetCoreTest
 
         private async Task NodesRecursion(ZookeeperNode node, string path)
         {
-            IEnumerable<string> childrens = await GetChilderen(path, this.Watcher);
+            IEnumerable<string> childrens = await _zooKeeperClient.GetChilderen(path, this.Watcher);
             if (childrens == null || !childrens.Any())
                 return;
 
@@ -309,7 +166,7 @@ namespace ZooKeeperNetCoreTest
                 ZookeeperNode child = new ZookeeperNode
                 {
                     Name = str,
-                    Value = await GetData<string>(nodePath, this.Watcher),
+                    Value = await _zooKeeperClient.GetData<string>(nodePath, this.Watcher),
                     Childrens = new List<ZookeeperNode>()
                 };
 
@@ -321,7 +178,38 @@ namespace ZooKeeperNetCoreTest
             }
         }
 
-        public async Task<ZookeeperNode> GetConfig(string path)
+        public void ConnectZK()
+        {
+            GetAllNodes().GetAwaiter().GetResult();
+        }
+
+        public ZookeeperNode GetConfig(string path)
+        {
+            var allNodes = _allZookeeperNodes;
+            if (allNodes == null)
+                throw new ArgumentException("nodes is null");
+
+            if (string.IsNullOrEmpty(path))
+                throw new ArgumentException("path cannot be null or empty");
+
+            if (path == "/")
+                return allNodes;
+
+            path = path.Trim(new[] { '/' });
+            string[] tiers = path.Split('/');
+
+            ZookeeperNode configNode = allNodes;
+            for (int i = 0; i < tiers.Length; i++)
+            {
+                configNode = configNode.Childrens.FirstOrDefault(node => node.Name == tiers[i]);
+                if (configNode == null)
+                    return null;
+            }
+
+            return configNode;
+        }
+
+        public async Task<ZookeeperNode> GetConfigAsync(string path)
         {
             var allNodes = await GetAllNodes();
             if (allNodes == null)
@@ -345,10 +233,9 @@ namespace ZooKeeperNetCoreTest
             }
 
             return configNode;
-
         }
 
-        async Task DeleteConfig(string path)
+        public async Task DeleteConfig(string path)
         {
             var allNodes = await GetAllNodes();
             if (allNodes == null)
@@ -375,7 +262,7 @@ namespace ZooKeeperNetCoreTest
             configNode.Childrens.Remove(leafNode);
         }
 
-        async Task CreateConfig(string path)
+        public async Task CreateConfig(string path)
         {
             var allNodes = await GetAllNodes();
             if (allNodes == null)
@@ -398,7 +285,7 @@ namespace ZooKeeperNetCoreTest
                     return;
             }
 
-            string value = await GetData<string>(path, this.Watcher);
+            string value = await _zooKeeperClient.GetData<string>(path, this.Watcher);
 
             ZookeeperNode configNodes = new ZookeeperNode
             {
@@ -410,7 +297,7 @@ namespace ZooKeeperNetCoreTest
             configNode.Childrens.Add(configNodes);
         }
 
-        async Task UpdateConfig(string path)
+        public async Task UpdateConfig(string path)
         {
             var allNodes = await GetAllNodes();
             if (allNodes == null)
@@ -433,14 +320,14 @@ namespace ZooKeeperNetCoreTest
                     return;
             }
 
-            string value = await GetData<string>(path,this.Watcher);
+            string value = await _zooKeeperClient.GetData<string>(path,this.Watcher);
 
             configNode.Value = value;
 
             configNode.Host = SafeDeserializeObject<Host>(value);        
         }
 
-        async Task SetNodes(string path)
+        public async Task SetNodes(string path)
         {
             var allNodes = await GetAllNodes();
             if (allNodes == null)
@@ -465,7 +352,7 @@ namespace ZooKeeperNetCoreTest
                 }
             }
 
-            string value = await GetData<string>(path, this.Watcher);
+            string value = await _zooKeeperClient.GetData<string>(path, this.Watcher);
 
             ZookeeperNode newNode = new ZookeeperNode()
             {
@@ -493,30 +380,6 @@ namespace ZooKeeperNetCoreTest
                 // ignored
             }
             return obj;
-        }
-
-        private static byte[] Serialize<T>(T model)
-        {
-            if (model == null)
-                return null;
-
-            if (typeof(T) == typeof(string))
-                return model.ToString().GetBytes();
-
-            string str = JsonConvert.SerializeObject(model);
-            return str.GetBytes();
-        }
-
-        private static T Deserialize<T>(byte[] bytes)
-        {
-            if (bytes == null) return default(T);
-
-            string node = Encoding.UTF8.GetString(bytes);
-
-            if (typeof(T) == typeof(string))
-                return (T)(object)node;
-
-            return JsonConvert.DeserializeObject<T>(node);
         }
     }
 }
