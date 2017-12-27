@@ -4,6 +4,11 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>ZooKeeperNet</AssemblyName>
     <RootNamespace>ZooKeeperNet</RootNamespace>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>Suiyi</Authors>
+    <Company>Suiyi</Company>
+    <PackageId>ZooKeeperNetCore</PackageId>
+    <Product>ZooKeeperNetCore</Product>
   </PropertyGroup>
   
   <ItemGroup>
