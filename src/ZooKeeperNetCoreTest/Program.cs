@@ -19,9 +19,11 @@ namespace ZooKeeperNetCoreTest
 
             while (true)
             {
-                ZKClientTest();
+                HttpTest();
 
-                ConfigsManagerSyncTest();
+                //ZKClientTest();
+
+                //ConfigsManagerSyncTest();
 
                 Console.ReadLine();
             }
@@ -37,10 +39,10 @@ namespace ZooKeeperNetCoreTest
 
             var cm = _cmLazy.Value;
             cm.ConnectZK();
-            
+
             const int c = 10000;
             CountdownEvent k = new CountdownEvent(c);
-  
+
             Parallel.For(0, c, (i) =>
             {
                 var node = cm.GetConfig("/sz");
@@ -108,13 +110,20 @@ namespace ZooKeeperNetCoreTest
             Stopwatch sw = new Stopwatch();
             sw.Start();
 
-            const int c = 30000;
+            const int c = 1000;
             CountdownEvent k = new CountdownEvent(c);
-            const string requestUrl = "http://10.1.62.59:8000/sz/Basic/CityRouteRequest";
+            const string requestUrl = "http://10.1.4.204:9566/sz/Basic/CityRouteRequest";
             Parallel.For(0, c, (i) =>
             {
                 var task = HttpRequestHelper.DoGetAsync(requestUrl);
-                task.ContinueWith(n => { k.Signal(1); });
+                task.ContinueWith(n =>
+                {
+                    if (n.IsFaulted)
+                    {
+                        Console.WriteLine(n.Exception);
+                    }
+                    k.Signal(1);
+                });
             });
 
             k.Wait();
