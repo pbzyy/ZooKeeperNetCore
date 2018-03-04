@@ -35,7 +35,7 @@ namespace ZooKeeperNet
 
         private readonly ClientConnection conn;
         //ConcurrentQueue gives us the non-blocking way of processing, it reduced the contention so much
-        internal readonly BlockingCollection<ClientConnection.WatcherSetEventPair> waitingEvents = new BlockingCollection<ClientConnection.WatcherSetEventPair>();
+        internal readonly AsyncQueue<ClientConnection.WatcherSetEventPair> waitingEvents = new AsyncQueue<ClientConnection.WatcherSetEventPair>();
         
         /** This is really the queued session state until the event
          * thread actually processes the event and hands it to the watcher.
@@ -48,18 +48,11 @@ namespace ZooKeeperNet
             this.conn = conn;         
         }
 
+        private Task pollEventsTask;
+
         public void Start()
         {
-            Task.Factory.StartNew(
-             async o =>
-             {
-                 var c = (ClientConnectionEventConsumer)o;
-                 await c.PollEvents();
-             },
-             this,
-             default(CancellationToken),
-             TaskCreationOptions.DenyChildAttach,
-             TaskScheduler.Default);;
+            pollEventsTask = this.PollEvents();
         }
 
         private static async Task ProcessWatcher(IEnumerable<IWatcher> watchers,WatchedEvent watchedEvent)
@@ -82,12 +75,12 @@ namespace ZooKeeperNet
 
         private async Task PollEvents()
         {
-            while (!waitingEvents.IsCompleted)
+            while (!waitingEvents.Cleared)
             {
                 try
                 {
-                    ClientConnection.WatcherSetEventPair pair = null;
-                    if (waitingEvents.TryTake(out pair, -1))
+                    ClientConnection.WatcherSetEventPair pair = await waitingEvents.DequeueAsync();
+                    if (pair != null)
                     {
                         await ProcessWatcher(pair.Watchers, pair.WatchedEvent);
                     }
@@ -115,15 +108,13 @@ namespace ZooKeeperNet
         {
             if (@event.Type == EventType.None && sessionState == @event.State) return;
 
-            if (waitingEvents.IsAddingCompleted)
-                throw new InvalidOperationException("consumer has been disposed");
-            
+
             sessionState = @event.State;
 
             // materialize the watchers based on the event
             var pair = new ClientConnection.WatcherSetEventPair(conn.watcher.Materialize(@event.State, @event.Type,@event.Path), @event);
             // queue the pair (watch set & event) for later processing
-            waitingEvents.Add(pair);
+            waitingEvents.Enqueue(pair);
         }
 
         private int isDisposed = 0;
@@ -131,7 +122,8 @@ namespace ZooKeeperNet
         {
             if (Interlocked.CompareExchange(ref isDisposed, 1, 0) == 0)
             {
-                waitingEvents.CompleteAdding();
+                waitingEvents.Clear();
+                pollEventsTask.Dispose();
             }
         }
 

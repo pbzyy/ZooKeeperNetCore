@@ -349,7 +349,7 @@ namespace ZooKeeperNet
             ReplyHeader r = new ReplyHeader();
             Packet p = QueuePacket(h, r, request, response, null, null, watchRegistration, null, null);
 
-            await p.WaitUntilFinishedSlim().ConfigureAwait(false);
+            await p.WaitUntilFinished().ConfigureAwait(false);
 
             return r;
         }

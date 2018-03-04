@@ -392,31 +392,17 @@ namespace ZooKeeperNet
             var connectionState = State;
             if (null != connectionState && !connectionState.IsAlive())
             {
-                //if (LOG.IsDebugEnabled)
-                //{
-                //    LOG.Debug("Close called on already closed client");
-                //}
                 return;
             }
-
-            //if (LOG.IsDebugEnabled)
-            //{
-            //    LOG.DebugFormat("Closing session: 0x{0:X}", SessionId);
-            //}
 
             try
             {
                 cnxn.Dispose();
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                //if (LOG.IsDebugEnabled)
-                //{
-                //    LOG.Debug("Ignoring unexpected exception during close", e);
-                //}
+                // ignored
             }
-
-            //LOG.DebugFormat("Session: 0x{0:X} closed", SessionId);
         }
 
         public void Dispose()

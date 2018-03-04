@@ -91,7 +91,7 @@ namespace ZooKeeperNet
 
         private readonly TaskCompletionSource<int> tsc = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public Task WaitUntilFinishedSlim()
+        public Task WaitUntilFinished()
         {
             return tsc.Task;
         }
