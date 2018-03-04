@@ -73,7 +73,7 @@ namespace ZooKeeperNet
             {
                 try
                 {
-                    ClientConnection.WatcherSetEventPair pair = await waitingEvents.DequeueAsync();
+                    ClientConnection.WatcherSetEventPair pair = await waitingEvents.DequeueAsync(TimeSpan.FromMinutes(1));
                     if (pair != null)
                     {
                         await ProcessWatcher(pair.Watchers, pair.WatchedEvent);

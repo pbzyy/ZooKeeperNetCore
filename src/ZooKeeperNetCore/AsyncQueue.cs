@@ -25,14 +25,14 @@ namespace ZooKeeperNet
             _sem.Release();
         }
 
-        public async Task<T> DequeueAsync()
+        public async Task<T> DequeueAsync(TimeSpan timmeout)
         {
             if (_cleared)
                 throw new ObjectDisposedException("AsyncQueue Cleared");
 
             for (; ; )
             {
-                var flag = await _sem.WaitAsync(TimeSpan.FromMinutes(1));
+                var flag = await _sem.WaitAsync(timmeout);
                 if (!flag)
                     return default(T);
 
