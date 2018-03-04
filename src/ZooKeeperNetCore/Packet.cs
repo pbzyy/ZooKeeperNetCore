@@ -89,17 +89,17 @@ namespace ZooKeeperNet
             this.watchRegistration = watchRegistration;
         }
 
-        private readonly SemaphoreSlim mreslim = new SemaphoreSlim(0);
+        private readonly TaskCompletionSource<int> tsc = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task WaitUntilFinishedSlim()
         {
-            return mreslim.WaitAsync();
+            return tsc.Task;
         }
 
         internal void SetFinished()
         {
             finished = 1;
-            mreslim.Release();
+            tsc.SetResult(0);
         }
 
         public override string ToString()

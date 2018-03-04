@@ -11,7 +11,7 @@ namespace ZooKeeperNetCoreTest
     {
         private static readonly IInternalLogger Logger = InternalLoggerFactory.GetInstance<Program>();
 
-        private static Lazy<ConfigsManager> _cmLazy = new Lazy<ConfigsManager>(() => new ConfigsManager("10.1.62.59"));
+        private static Lazy<ConfigsManager> _cmLazy = new Lazy<ConfigsManager>(() => new ConfigsManager("10.1.62.66"));
 
         static void Main(string[] args)
         {
@@ -19,11 +19,11 @@ namespace ZooKeeperNetCoreTest
 
             while (true)
             {
-                HttpTest();
+                //HttpTest();
 
-                //ZKClientTest();
+                ZKClientTest();
 
-                //ConfigsManagerSyncTest();
+                ConfigsManagerSyncTest();
 
                 Console.ReadLine();
             }
@@ -62,7 +62,7 @@ namespace ZooKeeperNetCoreTest
 
             const int c = 10000;
             CountdownEvent k = new CountdownEvent(c);
-            var zookeeperClient = ZookeeperClientFactory.Get("10.1.62.59");
+            var zookeeperClient = ZookeeperClientFactory.Get("10.1.62.66");
             Parallel.For(0, c, (i) =>
             {
                 var task = zookeeperClient.GetData<string>("/sz");
