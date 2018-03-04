@@ -15,26 +15,20 @@
  *  limitations under the License.
  *
  */
-
-//using log4net;
-
-using System.Threading.Tasks;
-using ZooKeeperNet.Logging;
-
 namespace ZooKeeperNet
 {
     using System;
-    using System.Collections.Concurrent;
     using System.Threading;
-    using System.Text;
     using System.Collections.Generic;
+    using System.Threading.Tasks;
+    using Logging;
 
     public class ClientConnectionEventConsumer : IStartable, IDisposable
     {
         private static readonly IInternalLogger Logger = InternalLoggerFactory.GetInstance<ClientConnectionEventConsumer>();
 
         private readonly ClientConnection conn;
-        //ConcurrentQueue gives us the non-blocking way of processing, it reduced the contention so much
+
         internal readonly AsyncQueue<ClientConnection.WatcherSetEventPair> waitingEvents = new AsyncQueue<ClientConnection.WatcherSetEventPair>();
         
         /** This is really the queued session state until the event
